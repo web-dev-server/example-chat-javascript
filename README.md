@@ -1,6 +1,6 @@
 # Example - Chat
 
-[![Latest Stable Version](https://img.shields.io/badge/Stable-v1.0.0-brightgreen.svg?style=plastic)](https://github.com/web-dev-server/example-chat/releases)
+[![Latest Stable Version](https://img.shields.io/badge/Stable-v1.1.0-brightgreen.svg?style=plastic)](https://github.com/web-dev-server/example-chat/releases)
 [![License](https://img.shields.io/badge/Licence-BSD-brightgreen.svg?style=plastic)](https://mvccore.github.io/docs/mvccore/4.0.0/LICENCE.md)
 
 Chat example with session authentication. Client scripts written with pure Javascript, no framework needed.
