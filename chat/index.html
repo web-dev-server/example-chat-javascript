@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en-US">
+    <head>
+        <meta charset="utf-8" />
+        <title>Multiplayer Chat</title>
+        
+		<link rel="stylesheet" type="text/css" href="css/style.css" />
+		
+    </head>
+    <body>
+
+		
+		<form id="login-form" class="login-form">
+			<label for="login-user">Please enter chat nick name</label>
+			<input name="user" type="text" placeholder="Nickname" />
+			<input name="pass" type="text" placeholder="Password" />
+			<input type="submit" value="Login" />
+        </form>
+        
+		
+		<div id="chat-room" class="chat-room">
+            
+			<div class="header">
+				<b>Websocket Multiplayer Chat</b>
+				<span id="current-user"></span>
+				<a id="logout-btn" href="javascript:void(0);">logout</a>
+            </div>
+			
+			<div class="chat-content">
+				<div id="online-users" class="online-users"></div>
+				<div id="messages" class="messages"></div>
+			</div>
+			
+			<form id="message-form" class="message-form" action="javascript:void(0);">
+				<div class="message-cont">
+					<textarea 
+						type="text" 
+						maxlength="140" 
+						placeholder="Write text message, hit Ctrl + Enter to send" 
+						name="message"></textarea>
+				</div>
+				<div class="recepients">
+					<div>
+						<input id="all" type="radio" name="rcp" value="all" checked="checked" />
+						<label for="all">Send to all</label>
+					</div>
+					<div id="recepients">
+						<div ng-show="recepient.userid != userid">
+							<input id="id" type="radio" name="rcp" value="id" />
+							<label for="id">usern</label>
+						</div>
+					</div>
+				</div>
+				<button type="submit">Send</button>
+			</form>
+			
+        </div>
+		
+		
+        <script type="text/javascript" src="js/class.dev.js"></script>
+		<script type="text/javascript" src="js/ajax.dev.js"></script>
+        <script type="text/javascript" src="js/socket-wrapper.js"></script>
+        <script type="text/javascript" src="js/client.js"></script>
+		
+    </body>
+</html>
