@@ -82,7 +82,7 @@ Class.Define('Chat', {
 				},
 				type: 'json',
 				error: function (responseText, statusCode, xhr) {
-					alert(responseText);
+					alert("Wrong username or password. See: ./chat/data/login-data.csv");
 				}
 			});
 		}

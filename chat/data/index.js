@@ -24,15 +24,15 @@ App.prototype = {
 		this._wss = new WebSocketServer({ server: httpServer });
 		this._wss.on('connection', this._webSocketConnectionHandler.bind(this));
 	},
-	_webSocketConnectionHandler: function (ws) {
+	_webSocketConnectionHandler: function (ws, req) {
 		this._sessionParser(
-			ws.upgradeReq, 
+			req, 
 			{}, 
-			this._webSocketSessionParsedHandler.bind(this, ws)
+			this._webSocketSessionParsedHandler.bind(this, ws, req)
 		);
 	},
-	_webSocketSessionParsedHandler: function (ws) {
-		var sessionId = ws.upgradeReq.session.id;
+	_webSocketSessionParsedHandler: function (ws, req) {
+		var sessionId = req.session.id;
 		if (typeof(this._allowedSessionIds[sessionId]) == 'undefined') {
 			console.log("Connected not authorized user with session id: " + sessionId);
 			ws.close(4000, 'Not authorized session.');
