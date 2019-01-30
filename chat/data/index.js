@@ -1,6 +1,7 @@
 var WebSocketServer = require('ws').Server,
 	Url = require('url'),
-	fs = require('fs');
+	fs = require('fs'),
+	expressSession = require('express-session');
 
 var App = function (httpServer, expressServer, sessionParser, request, response) {
 	this._init(httpServer, expressServer, sessionParser, request, response);
@@ -32,6 +33,7 @@ App.prototype = {
 		);
 	},
 	_webSocketSessionParsedHandler: function (ws, req) {
+		ws.upgradeReq = req; // necessary for WebSocketServer 3.0.0+, https://github.com/websockets/ws/pull/1099
 		var sessionId = req.session.id;
 		if (typeof(this._allowedSessionIds[sessionId]) == 'undefined') {
 			console.log("Connected not authorized user with session id: " + sessionId);
@@ -87,7 +89,9 @@ App.prototype = {
 			
 		} else if (eventName == 'message') {
 			
-			var recepient = typeof(data.recepient) != 'undefined' ? data.recepient : 'all';
+			var recepient = typeof(data.recepient) != 'undefined' && data.recepient
+				? data.recepient 
+				: 'all';
 			
 			if (recepient == 'all') {
 				this._sendToAll('message', data);
@@ -116,9 +120,8 @@ App.prototype = {
 		delete this._onlineUsers[uidToDelete];
 		
 		var onlineUsersToSendBack = {};
-		for (var uid in this._onlineUsers) {
+		for (var uid in this._onlineUsers) 
 			onlineUsersToSendBack[uid] = this._onlineUsers[uid].user;
-		}
 		
 		this._sendToAll('logout', {
 			onlineUsers: onlineUsersToSendBack, 
@@ -148,9 +151,8 @@ App.prototype = {
 		response.targetSessionId = targetSessionId;
 		this._data.push(response);
 		this._wss.clients.forEach(function (client) {
-			if (client.upgradeReq.sessionID == targetSessionId) {
+			if (client.upgradeReq.sessionID == targetSessionId) 
 				client.send(responseStr);
-			}
 		});
 	},
 	_sendToMyself: function (eventName, data, ws) {
@@ -192,13 +194,15 @@ App.prototype = {
 			/***************************************************************************/
 			if (this._users[data.user] && this._users[data.user].pass == data.pass) {
 				// after session is authorized - set session id authorization boolean to true:
-				this._allowedSessionIds[request.session.id] = true;
+				var sessionId = request.session.id;
+				this._allowedSessionIds[sessionId] = true;
 				
 				request.session.authorized = true;
-				request.session.save();
+				request.session.save(function () {
+					response.send('{"success":true,"id":' + this._users[data.user].id + '}');
+					callback();
+				}.bind(this));
 				
-				response.send('{"success":true,"id":' + this._users[data.user].id + '}');
-				callback();
 			} else {
 				response.send('{"success":false');
 				callback();

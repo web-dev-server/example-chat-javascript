@@ -17,6 +17,7 @@ SocketWrapper.prototype = {
 	_callbacks: {},
 	send: function (eventName, data) {
 		var str = JSON.stringify({eventName: eventName, data: data});
+		console.log(this._opened, str);
 		if (this._opened) {
 			this._socket.send(str);
 		} else {
@@ -51,7 +52,7 @@ SocketWrapper.prototype = {
 		};
 		return this;
 	},
-	_init: function (username) {
+	_init: function () {
 		if (this._connect()) {
 			this._socket.addEventListener('open', this._onOpenHandler.bind(this));
 			this._socket.addEventListener('error', this._onErrorHandler.bind(this));
@@ -70,17 +71,21 @@ SocketWrapper.prototype = {
 		return r;
 	},
 	_onOpenHandler: function (event) {
-    	var eventName = 'open', callbacks = [];
-    	this._opened = true;
-	    if (typeof(this._callbacks[eventName]) != 'undefined') {
-	    	this._processCallbacks(this._callbacks[eventName], [event]);
-	    }
-	    if (this._sendQueue.length) {
-	    	for (var i = 0, l = this._sendQueue.length; i < l; i++) {
-	    		this._socket.send(this._sendQueue[i]);
-	    	}
-		    this._sendQueue = [];
-	    }
+		var eventName = 'open', 
+			callbacks = [];
+		try {
+			this._opened = true;
+			if (typeof(this._callbacks[eventName]) != 'undefined') {
+				this._processCallbacks(this._callbacks[eventName], [event]);
+			}
+			if (this._sendQueue.length) {
+				for (var i = 0, l = this._sendQueue.length; i < l; i++) 
+					this._socket.send(this._sendQueue[i]);
+				this._sendQueue = [];
+			}
+		} catch (e) {
+			console.error(e);
+		}
 	},
 	_onErrorHandler: function (event) {
 		var eventName = 'error', callbacks = [], intId = 0;

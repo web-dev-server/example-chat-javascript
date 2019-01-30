@@ -1,6 +1,6 @@
 Class.Define('Chat', {
 	Static: {
-		ADDRESS: 'ws://localhost:8000/chat-pure-js/data/'
+		ADDRESS: 'ws://%location.host%%location.pathname%data/'
 	},
 	Constructor: function () {
 		this._initElements();
@@ -40,6 +40,10 @@ Class.Define('Chat', {
 				return scope._messageFormSubmitHandler(e || window.event);
 			}
 		};
+		window.addEventListener("unload", function(e) {
+			if (this._socket)
+				this._socket.close();
+		}.bind(this));
 		if (this._development) return;
 		window.addEventListener("beforeunload", function(e) {
 			return e.returnValue = "Do you realy want to leave chat?";
@@ -104,7 +108,11 @@ Class.Define('Chat', {
 	_initChatWebSocketComunication: function () {
 		var scope = this;
 		// connect to server:
-		this._socket = SocketWrapper.getInstance(this.self.ADDRESS);
+		this._socket = SocketWrapper.getInstance(
+			this.self.ADDRESS
+				.replace('%location.host%', location.host)
+				.replace('%location.pathname%', location.pathname)
+		);
 		// tell the server to login this user:
 		this._socket.send('login', {
 			id: this._id, 
@@ -186,6 +194,7 @@ Class.Define('Chat', {
 	},
 	_updateRecepients: function (onlineUsers) {
 		var html = '';
+		console.log(onlineUsers);
 		for (var id in onlineUsers) {
 			if (id == this._id) continue;
 			html += '<div>'
