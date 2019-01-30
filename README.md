@@ -1,13 +1,15 @@
 # Example - Chat
 
-[![Latest Stable Version](https://img.shields.io/badge/Stable-v1.2.0-brightgreen.svg?style=plastic)](https://github.com/web-dev-server/example-chat/releases)
+[![Latest Stable Version](https://img.shields.io/badge/Stable-v1.2.1-brightgreen.svg?style=plastic)](https://github.com/web-dev-server/example-chat/releases)
 [![License](https://img.shields.io/badge/Licence-BSD-brightgreen.svg?style=plastic)](https://github.com/web-dev-server/chat-example-pure-js/blob/master/LICENCE.md)
 
 Chat example with session authentication. Client scripts written with pure Javascript, no framework needed.
 
 ## Instalation
 ```shell
-npm install web-dev-server-example-chat-pure-js
+git clone https://github.com/web-dev-server/chat-example-pure-js.git example-chat-pure-js
+cd ./example-chat-pure-js
+npm update
 ```
 
 ## Usage
