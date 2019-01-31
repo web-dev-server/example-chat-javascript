@@ -1,6 +1,6 @@
 Class.Define('Chat', {
 	Static: {
-		ADDRESS: 'ws://%location.host%%location.pathname%data/'
+		ADDRESS: '%websocket.protocol%//%location.host%%location.pathname%data/'
 	},
 	Constructor: function () {
 		this._initElements();
@@ -110,6 +110,7 @@ Class.Define('Chat', {
 		// connect to server:
 		this._socket = SocketWrapper.getInstance(
 			this.self.ADDRESS
+				.replace('%websocket.protocol%', location.protocol === 'https:' ? 'wss:' : 'ws:')
 				.replace('%location.host%', location.host)
 				.replace('%location.pathname%', location.pathname)
 		);
