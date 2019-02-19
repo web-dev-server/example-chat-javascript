@@ -116,7 +116,7 @@ form.login-form input[type=submit]{
 	clear:both;
 }
 .message.content div{
-	max-width: 225px;
+	max-width: calc(100% - 30px);
     position: relative;
     display: inline-block;
     padding: 8px;

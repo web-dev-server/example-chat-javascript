@@ -1,4 +1,4 @@
-var WebSocketServer = require('ws').Server,
+var WebSocket = require('ws'),
 	Url = require('url'),
 	fs = require('fs'),
 	expressSession = require('express-session');
@@ -21,9 +21,9 @@ App.prototype = {
 		this._httpServer = httpServer;
 		this._expressServer = expressServer;
 		this._sessionParser = sessionParser;
-		console.log("Initializing websocket serverving:");
-		this._wss = new WebSocketServer({ server: httpServer });
+		this._wss = new WebSocket.Server({ server: httpServer });
 		this._wss.on('connection', this._webSocketConnectionHandler.bind(this));
+		console.log("WebSocket serving initialized.");
 	},
 	_webSocketConnectionHandler: function (ws, req) {
 		this._sessionParser(
@@ -33,14 +33,14 @@ App.prototype = {
 		);
 	},
 	_webSocketSessionParsedHandler: function (ws, req) {
-		ws.upgradeReq = req; // necessary for WebSocketServer 3.0.0+, https://github.com/websockets/ws/pull/1099
+		ws.upgradeReqSessionID = req.sessionID; // necessary for WebSocket.Server 3.0.0+, https://github.com/websockets/ws/pull/1099
 		var sessionId = req.session.id;
 		if (typeof(this._allowedSessionIds[sessionId]) == 'undefined') {
-			console.log("Connected not authorized user with session id: " + sessionId);
+			console.log("Connected not authorized user with session id: '" + sessionId + "'.");
 			ws.close(4000, 'Not authorized session.');
 			
 		} else if (this._allowedSessionIds[sessionId]){
-			console.log("Connected authorized user with session id: " + sessionId);
+			console.log("Connected authorized user with session id: '" + sessionId + "'.");
 			this._sendToMyself('connection', {
 				message: 'Welcome, you are connected.'
 			}, ws);
@@ -53,6 +53,7 @@ App.prototype = {
 				}
 			}.bind(this));
 			ws.on('close', this._webSocketOnClose.bind(this, sessionId));
+			ws.on('error', this._webSocketOnError.bind(this, sessionId));
 		}
 	},
 	_webSocketOnMessage: function (str, bufferCont, sessionId) {
@@ -130,7 +131,36 @@ App.prototype = {
 			user: userToDelete.user
 		});
 		
-		console.log(onlineUser.user + ' exited the chat room');
+		console.log("User '" + onlineUser.user + "' exited the chat room.");
+	},
+	_webSocketOnError: function (sessionId) {
+		// session id authorization boolean to false after user is disconnected
+		this._allowedSessionIds[sessionId] = false;
+		
+		var onlineUser = {}, userToDelete = {}, uidToDelete = '';
+		for (var uid in this._onlineUsers) {
+			onlineUser = this._onlineUsers[uid];
+			if (sessionId != onlineUser.sessionId) continue;
+			userToDelete = onlineUser;
+			uidToDelete = uid;
+			break;
+		}
+		
+		this._onlineUsersCount--;
+		delete this._onlineUsers[uidToDelete];
+		
+		var onlineUsersToSendBack = {};
+		for (var uid in this._onlineUsers) 
+			onlineUsersToSendBack[uid] = this._onlineUsers[uid].user;
+		
+		this._sendToAllExceptMyself('logout', {
+			onlineUsers: onlineUsersToSendBack, 
+			onlineUsersCount: this._onlineUsersCount, 
+			id: userToDelete.id,
+			user: userToDelete.user
+		});
+		
+		console.log("User '" + onlineUser.user + "' exited the chat room (connection error).");
 	},
 	_sendToAll: function (eventName, data) {
 		var response = {
@@ -138,9 +168,21 @@ App.prototype = {
 			data: data
 		}
 		this._data.push(response);
-		this._wss.clients.forEach(function (client) {
-			client.send(JSON.stringify(response));
-		});
+		if (this._data.length > App.LAST_MESSAGES_TO_SEND)
+			this._data.shift();
+		this._wss.clients.forEach(function (client, index) {
+			try {
+				if (client.readyState === WebSocket.OPEN) {
+					client.send(JSON.stringify(response));	
+				} else if (client.readyState !== WebSocket.CONNECTING) {
+					client.terminate();
+					var clientPos = this._wss.clients.indexOf(client);
+					if (clientPos !== -1) this._wss.clients.splice(clientPos, 1);
+				}
+			} catch (e) {
+				console.log(e);
+			}
+		}.bind(this));
 	},
 	_sendToSingle: function (eventName, data, targetSessionId) {
 		var response = {
@@ -150,17 +192,65 @@ App.prototype = {
 		var responseStr = JSON.stringify(response);
 		response.targetSessionId = targetSessionId;
 		this._data.push(response);
-		this._wss.clients.forEach(function (client) {
-			if (client.upgradeReq.sessionID == targetSessionId) 
-				client.send(responseStr);
-		});
+		if (this._data.length > App.LAST_MESSAGES_TO_SEND)
+			this._data.shift();
+		this._wss.clients.forEach(function (client, index) {
+			try {
+				if (client.upgradeReqSessionID == targetSessionId) {
+					if (client.readyState === WebSocket.OPEN) {
+						client.send(responseStr);
+					} else if (client.readyState !== WebSocket.CONNECTING) {
+						client.terminate();
+						var clientPos = this._wss.clients.indexOf(client);
+						if (clientPos !== -1) this._wss.clients.splice(clientPos, 1);
+					}
+				}
+			} catch (e) {
+				console.log(e);
+			}
+		}.bind(this));
 	},
 	_sendToMyself: function (eventName, data, ws) {
 		var responseStr = JSON.stringify({
 			eventName: eventName,
 			data: data
 		});
-		ws.send(responseStr);
+		try {
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(responseStr);
+			} else if (ws.readyState !== WebSocket.CONNECTING) {
+				ws.terminate();
+				var clientPos = this._wss.clients.indexOf(ws);
+				if (clientPos !== -1) this._wss.clients.splice(clientPos, 1);
+			}
+		} catch (e) {
+			console.log(e);
+		}
+	},
+	_sendToAllExceptMyself: function (eventName, data, myselfSessionId) {
+		var response = {
+			eventName: eventName,
+			data: data
+		};
+		var responseStr = JSON.stringify(response);
+		this._data.push(response);
+		if (this._data.length > App.LAST_MESSAGES_TO_SEND)
+			this._data.shift();
+		this._wss.clients.forEach(function (client, index) {
+			try {
+				if (client.upgradeReqSessionID !== myselfSessionId) {
+					if (client.readyState === WebSocket.OPEN) {
+						client.send(responseStr);
+					} else if (client.readyState !== WebSocket.CONNECTING) {
+						client.terminate();
+						var clientPos = this._wss.clients.indexOf(client);
+						if (clientPos !== -1) this._wss.clients.splice(clientPos, 1);
+					}
+				}
+			} catch (e) {
+				console.log(e);
+			}
+		}.bind(this));
 	},
 	httpRequestHandler: function (request, response, callback) {
 		if (request.method == 'POST' && typeof(request.query['login-submit']) != 'undefined') {
