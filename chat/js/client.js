@@ -70,8 +70,12 @@ Class.Define('Chat', {
 			user = this._loginForm.user.value,
 			pass = this._loginForm.pass.value;
 		if (user != '' && pass != '') {
+			var pathName = location.pathname;
+			var lastSlashPos = pathName.lastIndexOf('/');
+			if (lastSlashPos > -1) 
+				pathName = pathName.substr(0, lastSlashPos + 1);
 			Ajax.load({
-				url: location.origin + location.pathname + 'data/?login-submit',
+				url: location.origin + pathName + 'data/?login-submit',
 				method: 'post',
 				data: { 
 					user: user,

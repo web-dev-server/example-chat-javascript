@@ -2,10 +2,9 @@
 <html lang="en-US">
     <head>
         <meta charset="utf-8" />
-        <title>Multiplayer Chat</title>
-        
+        <title>Websocket Chat</title>
 		<link rel="stylesheet" type="text/css" href="css/style.css" />
-		
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
     </head>
     <body>
 
@@ -21,7 +20,7 @@
 		<div id="chat-room" class="chat-room">
             
 			<div class="header">
-				<b>Websocket Multiplayer Chat</b>
+				<b>Websocket Chat</b>
 				<span id="current-user"></span>
 				<a id="logout-btn" href="javascript:void(0);">logout</a>
             </div>
@@ -36,7 +35,7 @@
 					<textarea 
 						type="text" 
 						maxlength="1048576" 
-						placeholder="Write text message, hit Ctrl + Enter to send" 
+						placeholder="(CTRL+ENTER to send message)" 
 						name="message"></textarea>
 				</div>
 				<div class="recepients">
