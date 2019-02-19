@@ -20,6 +20,9 @@ Class.Define('Chat', {
 		this._messages = $elm("messages");
 		this._messageForm = $elm("message-form");
 		this._recepients = $elm("recepients");
+		this._audioElm = $elm("msg-sound");
+		this._typingUsersCont = $elm("typing-users-cont");
+		this._typingUsers = $elm("typing-users");
 	},
 	_initEvents: function () {
 		var scope = this;
@@ -38,6 +41,16 @@ Class.Define('Chat', {
 			if (e.keyCode == 13 && e.ctrlKey) {
 				// enter + ctrl
 				return scope._messageFormSubmitHandler(e || window.event);
+			}
+		};
+		this._messageForm.message.onkeyup = function (e) {
+			e = e || window.event;
+			if (!(e.keyCode == 13 && e.ctrlKey)) {
+				var messageText = scope._messageForm.message.value;
+				return scope._messageFormTypingHandler(
+					String(messageText).trim().length > 0, 
+					e || window.event
+				);
 			}
 		};
 		window.addEventListener("unload", function(e) {
@@ -138,12 +151,36 @@ Class.Define('Chat', {
 				data.content,
 				data.user
 			);
+			scope._audioElm.play();
+		});
+		this._socket.bind('typing', function (data) {
+			scope._typingUsersHandler(data);
 		});
 	},
 	_messageFormSubmitHandler: function (e) {
-		var messageText = this._messageForm.message.value,
-			recepientRadio = null,
-			recepient = '';
+		var messageText = this._messageForm.message.value;
+		if (messageText != '') {
+			this._socket.send('message', {
+				id: this._id,
+				user: this._user,
+				recepient: this._getRecepient(),
+				content: messageText
+			});
+			this._messageForm.message.value = '';
+		}
+		e.preventDefault();
+		return false;
+	},
+	_messageFormTypingHandler: function (typing, e) {
+		this._socket.send('typing', {
+			id: this._id,
+			user: this._user,
+			recepient: this._getRecepient(),
+			typing: typing
+		});
+	},
+	_getRecepient: function () {
+		var recepientRadio = null, recepient = '';
 		for (var i = 0, l = this._messageForm.rcp.length; i < l; i += 1) {
 			recepientRadio = this._messageForm.rcp[i];
 			if (recepientRadio.checked) {
@@ -151,17 +188,7 @@ Class.Define('Chat', {
 				break;
 			}
 		}
-		if (messageText != '') {
-			this._socket.send('message', {
-				id: this._id,
-				user: this._user,
-				recepient: recepient,
-				content: messageText
-			});
-			this._messageForm.message.value = '';
-		}
-		e.preventDefault();
-		return false;
+		return recepient;
 	},
 	_anyUserLogInHandler: function (data) {
 		this._updateOnlineUsersHandler(data);
@@ -196,6 +223,18 @@ Class.Define('Chat', {
 		}
 		this._onlineUsers.innerHTML = 'Currently online (' 
 			+ data.onlineUsersCount + ')： ' + html;
+	},
+	_typingUsersHandler: function (data) {
+		var typingUsers = [];
+		for (var userName in data) 
+			if (userName !== this._user && data[userName])
+				typingUsers.push(userName);
+		if (typingUsers.length === 0) {
+			this._typingUsersCont.style.display = 'none';
+		} else {
+			this._typingUsers.innerHTML = typingUsers.join(', ');
+			this._typingUsersCont.style.display = 'block';
+		}
 	},
 	_updateRecepients: function (onlineUsers) {
 		var html = '';

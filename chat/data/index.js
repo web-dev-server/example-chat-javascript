@@ -16,6 +16,7 @@ App.prototype = {
 	_onlineUsers: {},
 	_onlineUsersCount: 0,
 	_data: [],
+	_typingUsers: {},
 	_users: { length: 0 },
 	_init: function (httpServer, expressServer, sessionParser, request, response) {
 		this._httpServer = httpServer;
@@ -99,9 +100,27 @@ App.prototype = {
 			} else {
 				var targetSessionId = typeof(this._onlineUsers[recepient]) != 'undefined' ? this._onlineUsers[recepient].sessionId : '';
 				this._sendToSingle('message', data, targetSessionId);
-				this._sendToSingle('message', data, sessionId); // missing
+				this._sendToSingle('message', data, sessionId);
 			}
 			console.log(data.user + ': ' + data.content);
+		} else if (eventName == 'typing') {
+			
+			var recepient = typeof(data.recepient) != 'undefined' && data.recepient
+				? data.recepient 
+				: 'all';
+			var typing = typeof(data.typing) != 'undefined'
+				? data.typing 
+				: false;
+			
+			this._typingUsers[user] = typing;
+			
+			if (recepient == 'all') {
+				this._sendToAll('typing', this._typingUsers);
+			} else {
+				var targetSessionId = typeof(this._onlineUsers[recepient]) != 'undefined' ? this._onlineUsers[recepient].sessionId : '';
+				this._sendToSingle('typing', this._typingUsers, targetSessionId);
+			}
+			console.log(data.user + ' is typing.');
 		}
 	},
 	_webSocketOnClose: function (sessionId) {

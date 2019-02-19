@@ -202,3 +202,16 @@ form.message-form button{
 	border-radius:4px;
     font-size:130%;
 }
+
+audio#msg-sound {
+	display:none;
+}
+div.typing-users-cont{
+    position: absolute;
+    color: white;
+    bottom: 10px;
+    right: 10px;
+    white-space: nowrap;
+    font-size: 70%;
+	display: none;
+}

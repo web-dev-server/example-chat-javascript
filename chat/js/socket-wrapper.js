@@ -17,7 +17,7 @@ SocketWrapper.prototype = {
 	_callbacks: {},
 	send: function (eventName, data) {
 		var str = JSON.stringify({eventName: eventName, data: data});
-		console.log(this._opened, str);
+		//console.log(this._opened, str);
 		if (this._opened) {
 			this._socket.send(str);
 		} else {

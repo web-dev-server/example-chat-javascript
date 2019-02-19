@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en-US">
-    <head>
-        <meta charset="utf-8" />
-        <title>Websocket Chat</title>
+	<head>
+		<meta charset="utf-8" />
+		<title>Websocket Chat</title>
 		<link rel="stylesheet" type="text/css" href="css/style.css" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    </head>
-    <body>
+	</head>
+	<body>
 
 		
 		<form id="login-form" class="login-form">
@@ -14,16 +14,16 @@
 			<input name="user" type="text" placeholder="Nickname" />
 			<input name="pass" type="password" placeholder="Password" />
 			<input type="submit" value="Login" />
-        </form>
-        
+		</form>
+		
 		
 		<div id="chat-room" class="chat-room">
-            
+			
 			<div class="header">
 				<b>Websocket Chat</b>
 				<span id="current-user"></span>
 				<a id="logout-btn" href="javascript:void(0);">logout</a>
-            </div>
+			</div>
 			
 			<div class="chat-content">
 				<div id="online-users" class="online-users"></div>
@@ -51,15 +51,17 @@
 					</div>
 				</div>
 				<button type="submit">Send</button>
+				<div id="typing-users-cont" class="typing-users-cont">Typing user(s): <span id="typing-users"><span><div>
 			</form>
 			
-        </div>
+		</div>
 		
+		<audio id="msg-sound" src="js/message.mp3" />
 		
-        <script type="text/javascript" src="js/class.dev.js"></script>
+		<script type="text/javascript" src="js/class.dev.js"></script>
 		<script type="text/javascript" src="js/ajax.dev.js"></script>
-        <script type="text/javascript" src="js/socket-wrapper.js"></script>
-        <script type="text/javascript" src="js/client.js"></script>
+		<script type="text/javascript" src="js/socket-wrapper.js"></script>
+		<script type="text/javascript" src="js/client.js"></script>
 		
-    </body>
+	</body>
 </html>
