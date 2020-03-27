@@ -1,0 +1,5 @@
+node_modules/
+Workspace.code-workspace
+.editorconfig
+*.log
+TODO.md

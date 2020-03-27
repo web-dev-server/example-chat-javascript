@@ -271,30 +271,32 @@ App.prototype = {
 			}
 		}.bind(this));
 	},
-	httpRequestHandler: function (request, response, callback) {
-		if (request.method == 'POST' && typeof(request.query['login-submit']) != 'undefined') {
-			this._completeWholeRequestInfo(request, function (reqInfo) {
-				if (this._users.length) {
-					this._completeReqCredentialsAndTryToAuth(reqInfo, response, callback);
-				} else {
-					this._loadCsvLoginData(function (users) {
-						this._users = users;
-						this._completeReqCredentialsAndTryToAuth(reqInfo, response, callback);
-					}.bind(this));
-				}
-			}.bind(this));
-		} else {
-			response.send('/* No autorization credentials sended. */');
-			callback();
-		}
+	HandleHttpRequest: function (request, response) {
+		return new Promise(function (resolve, reject) {
+			if (request.method == 'POST' && typeof(request.query['login-submit']) != 'undefined') {
+				this._completeWholeRequestInfo(request, function (reqInfo) {
+					if (this._users.length) {
+						this._completeReqCredentialsAndTryToAuth(reqInfo, response, resolve);
+					} else {
+						this._loadCsvLoginData(function (users) {
+							this._users = users;
+							this._completeReqCredentialsAndTryToAuth(reqInfo, response, resolve);
+						}.bind(this));
+					}
+				}.bind(this));
+			} else {
+				response.send('/* No autorization credentials sended. */');
+				resolve();
+			}
+		}.bind(this));
 	},
-	_completeReqCredentialsAndTryToAuth: function (reqInfo, response, callback) {
+	_completeReqCredentialsAndTryToAuth: function (reqInfo, response, resolve) {
 		var request = reqInfo.request,
 			urlParts, data;
 		try {
 			urlParts = Url.parse("http://localhost/?" + reqInfo.textBody, true);
 			data = urlParts.query;
-		} catch (e) { }
+		} catch (e) {}
 		if (typeof(data) != 'undefined' && data.user.length > 0 && data.pass.length > 0) {
 			
 			
@@ -309,12 +311,12 @@ App.prototype = {
 				request.session.authorized = true;
 				request.session.save(function () {
 					response.send('{"success":true,"id":' + this._users[data.user].id + '}');
-					callback();
+					resolve();
 				}.bind(this));
 				
 			} else {
 				response.send('{"success":false');
-				callback();
+				resolve();
 			}
 			/***************************************************************************/
 			
@@ -322,7 +324,7 @@ App.prototype = {
 			
 		} else {
 			response.send('{"success":false');
-			callback();
+			resolve();
 		}			
 	},
 	_completeWholeRequestInfo: function (request, callback) {

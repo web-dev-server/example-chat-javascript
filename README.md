@@ -1,6 +1,6 @@
 # Example - Chat
 
-[![Latest Stable Version](https://img.shields.io/badge/Stable-v1.3.1-brightgreen.svg?style=plastic)](https://github.com/web-dev-server/example-chat/releases)
+[![Latest Stable Version](https://img.shields.io/badge/Stable-v2.1.0-brightgreen.svg?style=plastic)](https://github.com/web-dev-server/chat-example-pure-js/releases)
 [![License](https://img.shields.io/badge/Licence-BSD-brightgreen.svg?style=plastic)](https://github.com/web-dev-server/chat-example-pure-js/blob/master/LICENCE.md)
 
 Chat example with session authentication. Client scripts written with pure Javascript, no framework needed.
@@ -14,12 +14,12 @@ npm update
 
 ## Usage
 ```shell
-node run-server.js
+node server.js
 ```
 - open your first web browser on:
   - http://localhost:8000/chat/
-  - login with any user and password located in `chat/data/login-data.csv`
+  - login with any user and password located in `./chat/data/login-data.csv`
 - open your second web browser on:
   - http://localhost:8000/chat/
-  - login with any user and password located in `chat/data/login-data.csv`
+  - login with any user and password located in `./chat/data/login-data.csv`
 - chat between browsers
