@@ -1,6 +1,6 @@
 {
   "name": "web-dev-server-example-chat-pure-js",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "keywords": [
     "chat",
     "javascript",
@@ -20,7 +20,7 @@
   },
   "main": "server.js",
   "dependencies": {
-    "web-dev-server": "^2.1",
+    "web-dev-server": "file:../web-dev-server",
     "ws": "^3.3.2"
   }
 }

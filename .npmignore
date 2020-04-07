@@ -1,5 +1,6 @@
 node_modules/
 Workspace.code-workspace
+package-lock.json
 .editorconfig
 *.log
 TODO.md

@@ -1,19 +1,30 @@
-var WebDevServer = require("web-dev-server");
+//var WebDevServer = require("web-dev-server");
+var WebDevServer = require("../web-dev-server/build/lib/Server");
 
+
+// Create web server instance.
 WebDevServer.Server.CreateNew()
-	.SetDocumentRoot(__dirname)                       // required
-    //.SetPort(8000)                                  // optional, 8000 by default
-    //.SetDomain('localhost')                         // optional, 'localhost' by default
-    .SetSessionMaxAge(60 * 60 * 24)                   // optional, 1 hour by default, seconds
-	.SetSessionHashSalt('SGS2e+9x5$as%SD_AS6s.aHS96s')    // optional, session id hash salt
-    .SetDevelopment(true)                             // optional, true by default to display Errors and directory content
-    .AddHandler(function (req, res, e, cb) {          // optional, to prepend any execution before `web-dev-server` module execution
-        if (req.url == '/health') {
-            res.writeHead(200);
-            res.end('1');
-            e.PreventDefault();                       // do not anything else in `web-dev-server` module for this request
-        }
-        cb();
-    })
+	// Required.
+	.SetDocumentRoot(__dirname)
+	// Optional, 8000 by default.
+	.SetPort(8000)
+	// Optional, '127.0.0.1' by default.
+	.SetHostname('127.0.0.1')
+	// Optional, `true` by default to display Errors and directories.
+	//.SetDevelopment(false)
+	// Optional, `null` by default, useful for apache proxy modes.
+	//.SetBaseUrl('/chat')
+	// Optional, to prepend any execution before `web-dev-server` module execution.
+	.AddPreHandler(async function (req, res, event) {
+		if (req.GetPath() == '/health') {
+			res.SetCode(200).SetBody('1').Send();
+			// Do not anything else in `web-dev-server` module for this request:
+			event.PreventDefault();
+		}
+	})
 	.AddForbiddenPaths(['/chat/data/login-data.csv'])
-    .Run();
+	// Callback param is optional. called after server has been started or after error ocured.
+	.Start(function (success, err) {
+		if (!success) return console.error(err);
+		console.log("Server is running.");
+	});
