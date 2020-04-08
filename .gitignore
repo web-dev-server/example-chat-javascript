@@ -59,5 +59,11 @@ Temporary Items
 node_modules
 package-lock.json
 
+# Visual Studio
+bin/
+obj/
+*.njsproj
+*.njsproj.user
+
 # log files
 *.log

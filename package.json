@@ -20,7 +20,7 @@
   },
   "main": "server.js",
   "dependencies": {
-    "web-dev-server": "file:../web-dev-server",
+    "web-dev-server": "^3.0",
     "ws": "^3.3.2"
   }
 }

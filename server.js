@@ -1,5 +1,5 @@
-//var WebDevServer = require("web-dev-server");
-var WebDevServer = require("../web-dev-server/build/lib/Server");
+var WebDevServer = require("web-dev-server");
+//var WebDevServer = require("../web-dev-server/build/lib/Server");
 
 
 // Create web server instance.
