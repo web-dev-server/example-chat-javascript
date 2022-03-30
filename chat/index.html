@@ -11,8 +11,8 @@
 		
 		<form id="login-form" class="login-form">
 			<label for="login-user">Please enter chat nick name</label>
-			<input name="user" type="text" placeholder="Nickname" />
-			<input name="pass" type="password" placeholder="Password" />
+			<input name="user" type="text" placeholder="Nickname" autocomplete="username" />
+			<input name="pass" type="password" placeholder="Password" autocomplete="current-password" />
 			<input type="submit" value="Login" />
 		</form>
 		
@@ -45,7 +45,7 @@
 					</div>
 					<div id="recepients">
 						<!--div>
-							<input id="id" type="radio" name="rcp" value="id" />
+							<input id="id" type="radio" name="rcp" value="user" />
 							<label for="id">user</label>
 						</div-->
 					</div>
@@ -59,7 +59,7 @@
 		<audio id="msg-sound" src="js/message.mp3" />
 		
 		<script type="text/javascript" src="js/class.dev.js"></script>
-		<script type="text/javascript" src="js/ajax.dev.js"></script>
+		<script type="text/javascript" src="js/ajax.min.js"></script>
 		<script type="text/javascript" src="js/socket-wrapper.js"></script>
 		<script type="text/javascript" src="js/client.js"></script>
 		

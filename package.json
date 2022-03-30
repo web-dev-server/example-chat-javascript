@@ -1,16 +1,16 @@
 {
-  "name": "web-dev-server-example-chat-pure-js",
-  "version": "3.0.0",
+  "name": "web-dev-server-example-chat-javascript",
+  "version": "3.1.0",
   "keywords": [
     "chat",
     "javascript",
 	"node"
   ],
   "description": "Chat example with session authentication in pure Javascript.",
-  "homepage": "https://github.com/web-dev-server/example-chat-pure-js",
+  "homepage": "https://github.com/web-dev-server/example-chat-javascript",
   "repository": {
     "type": "git",
-    "url": "https://github.com/web-dev-server/example-chat-pure-js.git"
+    "url": "https://github.com/web-dev-server/example-chat-javascript.git"
   },
   "license": "BSD-3-Clause",
   "author": {
@@ -19,8 +19,22 @@
     "url": "https://github.com/tomFlidr"
   },
   "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "copy-files-from-to"
+  },
+  "copyFiles": [
+    {
+      "from": "node_modules/ajax-min/builds/latest/ajax.min.js",
+      "to": "chat/js/ajax.min.js"
+    }
+  ],
   "dependencies": {
-    "web-dev-server": "^3.0",
-    "ws": "^3.3.2"
+    "ajax-min": "^1.0.9",
+    "web-dev-server": "^3.0.26",
+    "ws": "^8.5.0"
+  },
+  "devDependencies": {
+    "copy-files-from-to": "^3.2.2"
   }
 }

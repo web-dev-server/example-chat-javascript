@@ -15,8 +15,9 @@ SocketWrapper.prototype = {
 	_opened: false,
 	_sendQueue: [],
 	_callbacks: {},
-	send: function (eventName, data) {
-		var str = JSON.stringify({eventName: eventName, data: data});
+	send: function (eventName, data, live) {
+		live = live != null ? live : true;
+		var str = JSON.stringify({eventName: eventName, data: data, live: live});
 		//console.log(this._opened, str);
 		if (this._opened) {
 			this._socket.send(str);
@@ -110,18 +111,19 @@ SocketWrapper.prototype = {
 	    var result = [],
 	    	eventName = '',
 	    	data = null,
-	    	callbacks = [];
+			live = true;;
 		try {
 			result = JSON.parse(event.data);
 			eventName = result.eventName;
 			data = result.data;
+			live = result.live != null ? result.live : true;
 		} catch (e) {
 			console.log(e, e.stack);
 		}
 		if (!eventName) {
 			console.log("Server data should be in JS array formated like: ['eventName', {any:'data',as:'object'}]");
 		} else if (typeof(this._callbacks[eventName]) != 'undefined') {
-	    	this._processCallbacks(this._callbacks[eventName], [data]);
+	    	this._processCallbacks(this._callbacks[eventName], [data, live]);
 	    } else {
 	    	console.log("No callback found for socket event: '" + eventName + "', url: '" + this._url + "'.", data);
 	    }

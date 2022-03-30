@@ -4,11 +4,10 @@ var WebDevServer = require("web-dev-server");
 //var WebDevServer = require("../../../web-dev-server/build/lib/Server");
 
 var App = function () {
-	this.allowedSessionIds = {};
+	this.static = new.target;
+	this.logger = null;
 	this.httpServer = null;
-	this.expressServer = null;
-	this.wss = null;
-	this.sessionParser = null;
+	this.wsServer = null;
 	this.onlineUsers = {};
 	this.onlineUsersCount = 0;
 	this.data = [];
@@ -16,194 +15,288 @@ var App = function () {
 	this.users = { length: 0 };
 };
 App.LAST_CHAT_MESSAGES_TO_SEND = 100;
+App.SESSION_EXPIRATION_SECONDS = 60 * 30; // 30 minutes
+App.SESSION_NAMESPACE_NAME = 'chat';
+App.USERS_DATA_RELATIVE_PATH = '/login-data.csv';
+App.LOGS_DIR_RELATIVE_PATH = '/../../logs';
+App.ALL_USERS_RECEPIENT_NAME = 'all';
 App.prototype = {
+	
 	Start (server, firstRequest, firstResponse) {
-		console.log("Initializing websocket serverving:");
-		this.wsServer = new WebSocket.Server({ server: server.GetHttpServer() });
-		this.wsServer.on('connection', function (ws, req) {
-			this.wsHandleConnection(ws, req)
-		}.bind(this));
+		this.logger = new WebDevServer.Tools.Logger(
+			__dirname + this.static.LOGS_DIR_RELATIVE_PATH,
+			server.GetDocumentRoot()
+		);
+		this.wsServer = new WebSocket.Server({
+			server: server.GetHttpServer()
+		});
+		console.log("WebSocket server initialized.");
+		this.wsServer.on('connection', this.handleWebSocketConnection.bind(this));
 	},
 	Stop (server) {
-		console.log("Closing websocket serverving:");
 		this.wsServer.close(function () {
 			server.Stop();
 		}.bind(this));
+		console.log("WebSocket server closed.");
 	},
+
 	HttpHandle: function (request, response) {
 		return new Promise(function (resolve, reject) {
 			if (request.IsCompleted()) {
-				this.httpRequestComplete(request, response, resolve, reject);
+				this.httpHandleRequestComplete(request, response, resolve, reject);
 			} else {
 				request.GetBody().then(function (body) {
-					this.httpRequestComplete(request, response, resolve, reject);
+					this.httpHandleRequestComplete(request, response, resolve, reject);
 				}.bind(this));
 			}
 		}.bind(this));
 	},
-	wsHandleConnection: function (ws, req) {
-		WebDevServer.Session.Start(req).then(function (session) {
-			var sessionId = session.GetId();
-			var sessionNamespace = session.GetNamespace("chat");
-			if (!sessionNamespace.authenticated) {
-				console.log("Connected not authorized user with session id: '" + sessionId + "'.");
-				ws.close(4000, 'Not authorized session.');
+	httpHandleRequestComplete: function (request, response, resolve, reject) {
+		WebDevServer.Session.Start(request, response).then(function(session) {
+			var sessionNamespace = session.GetNamespace(this.static.SESSION_NAMESPACE_NAME);
+			sessionNamespace.SetExpirationSeconds(this.static.SESSION_EXPIRATION_SECONDS);
+			if (this.users.length) {
+				this.httpHandleSendResponse(request, response, sessionNamespace, resolve, reject);
+			} else {
+				this.httpHandleLoadUsersCsv(reject, function (users) {
+					this.users = users;
+					this.httpHandleSendResponse(request, response, sessionNamespace, resolve, reject);
+				}.bind(this));
 			}
-			var id = sessionNamespace.id;
-			var user = sessionNamespace.user;
-			console.log("Connected authorized user with session id: '" + sessionId + "'.");
-			this.sendToMyself('connection', {
-				message: 'Welcome, you are connected.'
-			}, ws);
-			if (typeof(this.onlineUsers[id]) == 'undefined') {
-				this.onlineUsers[id] = {
-					sessionId: sessionId,
-					user: user,
-					ws: ws
-				};
-				this.onlineUsersCount++;
-			}
-			this.sendLastComunication(ws, sessionId);
-			ws.on('message', function (str, bufferCont) {
-				try {
-					this.webSocketOnMessage(str, bufferCont, sessionId, ws);
-				} catch (e) {
-					console.log(e, e.stack);
-				}
-			}.bind(this));
-			ws.on('close', this.webSocketOnClose.bind(this, sessionId));
-			ws.on('error', this.webSocketOnError.bind(this, sessionId));
 		}.bind(this));
 	},
-	webSocketOnMessage: function (str, bufferCont, sessionId, ws) {
-		
-		var sendedData = JSON.parse(str);
-		var eventName = sendedData.eventName;
-		var data = sendedData.data;
-		var id = data.id;
-		var user = data.user;
+	httpHandleLoadUsersCsv: function (reject, cb) {
+		fs.readFile (__dirname + this.static.USERS_DATA_RELATIVE_PATH, function (err, content) {
+			if (err) 
+				return reject(err);
+			var rows = content.toString().replace(/\r/g, '').split('\n'),
+				result = {},
+				length = 0;
+			rows.shift();
+			rows.forEach(function (row, i) {
+				var data = row.split(';'),
+					username = data[2];
+				result[username] = {
+					id: parseInt(data[0], 10),
+					name: data[1],
+					user: username,
+					pass: data[3]
+				};
+				length += 1;
+			});
+			result.length = length;
+			cb(result);
+		});
+	},
+	httpHandleSendResponse: function (request, response, sessionNamespace, resolve, reject) {
+		try {
+			var responseBody = this.httpHandleAuthUser(request, sessionNamespace);
+			response.SetBody(JSON.stringify(responseBody)).Send();
+			resolve();
+		} catch (e) {
+			reject(e);
+		}
+	},
+	httpHandleAuthUser: function (request, sessionNamespace) {
+		var ajaxResponse = {
+			success: false,
+			id: null,
+			message: null
+		}
+		if (request.GetMethod() !== 'POST') {
+			ajaxResponse.message = 'Wrong request method.';
+		} else if (!request.HasParam('login-submit')) {
+			ajaxResponse.message = 'No authentication credentials sent.';
+		} else if (sessionNamespace.authenticated) {
+			ajaxResponse.success = true;
+			ajaxResponse.id = sessionNamespace.id;
+			ajaxResponse.message = 'User is already authenticated.';
+		} else {
+			/***************************************************************************/
+			/**                          CSV users comparation                        **/
+			/***************************************************************************/
+			var user = request.GetParam("user", "\-\._@a-zA-Z0-9", ""),
+				pass = request.GetParam("pass", "\-\._@a-zA-Z0-9", "");
+			if (this.users[user] == null) {
+				ajaxResponse.message = 'User doesn\'t exist';
+			} else if (this.users[user] != null && String(this.users[user].pass) !== String(pass)) {
+				ajaxResponse.message = 'Wrong user password.';
+			} else {
+				
+				var id = this.users[user].id;
+				sessionNamespace.id = id;
+				sessionNamespace.user = user;
+				sessionNamespace.authenticated = true;
+				
+				ajaxResponse.success = true;
+				ajaxResponse.id = id;
+				ajaxResponse.message = "User has been authenticated.";
+
+			}
+			/***************************************************************************/
+		}
+		return ajaxResponse;
+	},
+
+	handleWebSocketConnection (socket, request) {
+		var sessionId = request.GetCookie(WebDevServer.Session.GetCookieName(), "a-zA-Z0-9");
+		if (sessionId == null) {
+			console.log("Connected user with no session id.");
+			return socket.close(4000, 'No session id.');
+		}
+		WebDevServer.Session.Exists(request).then(function (sessionExists) {
+			if (!sessionExists) {
+				console.log("Connected user with no started session (session id: '"+sessionId+"').");
+				return socket.close(4000, 'No started session.');
+			}
+			WebDevServer.Session.Get(sessionId).then(function (session) {
+				var sessionNamespace = session.GetNamespace(this.static.SESSION_NAMESPACE_NAME);
+				sessionNamespace.SetExpirationSeconds(this.static.SESSION_EXPIRATION_SECONDS);
+				if (!sessionNamespace.authenticated) {
+					console.log("Connected not authorized user (session id: '"+sessionId+"').");
+					return socket.close(4000, 'Not authorized session.');
+				}
+				var id = sessionNamespace.id,
+					user = sessionNamespace.user;
+				console.log("Connected authenticated user (user: '"+user+", session id: '"+sessionId+"').");
+				this.sendToMyself('connection', {
+					id: id,
+					user: user,
+					message: 'Welcome, you are connected.'
+				}, socket);
+				if (this.onlineUsers[id] == null) {
+					this.onlineUsers[id] = {
+						id: id,
+						sessionId: sessionId,
+						user: user,
+						ws: socket
+					};
+					this.onlineUsersCount += 1;
+				}
+				this.sendLastComunication(socket, sessionId, id);
+				socket.on('message', function (rawData, isBinary) {
+					try {
+						this.handleWebSocketOnMessage(rawData, socket);
+					} catch (e) {
+						if (e instanceof Error) {
+							this.logger.Error(e);
+						} else {
+							console.error(e);
+						}
+					}
+				}.bind(this));
+				socket.on('close', this.handleWebSocketOnClose.bind(this, sessionId));
+				socket.on('error', this.handleWebSocketOnError.bind(this, sessionId));
+			}.bind(this));
+		}.bind(this));
+	},
+	handleWebSocketOnMessage: function (rawData, socket) {
+		var sendedData = JSON.parse(rawData.toString()),
+			eventName = sendedData.eventName;
 		
 		if (eventName == 'login') {
-			
-			var onlineUsersToSendBack = {};
-			for (var uid in this.onlineUsers) 
-				onlineUsersToSendBack[uid] = this.onlineUsers[uid].user;
-			
-			this.sendToAll('login', {
-				onlineUsers: onlineUsersToSendBack, 
-				onlineUsersCount: this.onlineUsersCount, 
-				id: id,
-				user: user
-			});
-			
-			console.log(user + ' joined the chat room');
-			
+			this.handleWebSocketOnChatLogin(sendedData.data);
+
 		} else if (eventName == 'message') {
-			
-			var recepient = typeof(data.recepient) != 'undefined' && data.recepient
-				? data.recepient 
-				: 'all';
-			
-			if (recepient == 'all') {
-				this.sendToAll('message', data);
-			} else {
-				if (typeof(this.onlineUsers[recepient]) != 'undefined')
-					this.sendToSingle(
-						'message', data, this.onlineUsers[recepient].sessionId
-					);
-				this.sendToMyself('message', data, ws);
-			}
-			console.log(data.user + ': ' + data.content);
+			this.handleWebSocketOnChatMessage(sendedData.data, socket);
+
 		} else if (eventName == 'typing') {
+			this.handleWebSocketOnChatTyping(sendedData.data);
 			
-			var recepient = typeof(data.recepient) != 'undefined' && data.recepient
-				? data.recepient 
-				: 'all';
-			var typing = typeof(data.typing) != 'undefined'
-				? data.typing 
-				: false;
-			
-			this.typingUsers[user] = typing;
-			
-			if (recepient == 'all') {
-				this.sendToAll('typing', this.typingUsers);
+		}
+	},
+
+	handleWebSocketOnChatLogin: function (data) {
+		this.sendToAll('login', {
+			onlineUsers: this.serializeOnlineUsers(), 
+			onlineUsersCount: this.onlineUsersCount, 
+			id: data.id,
+			user: data.user
+		});
+		console.log("User '"+data.user+"' joined the chat room.");
+	},
+	handleWebSocketOnChatMessage: function (data, socket) {
+		var recepientData = this.getWebSocketMessageRecepient(data),
+			recepientName = recepientData.name,
+			recepientId = recepientData.id,
+			clientMsgData = {
+				id: data.id,
+				user: data.user,
+				content: data.content,
+				recepient: recepientName
+			};
+		
+		if (recepientName == this.static.ALL_USERS_RECEPIENT_NAME) {
+			this.sendToAll('message', clientMsgData);
+			console.log("User '"+data.user+"' send message '"+data.content+"' to all users.");
+		} else {
+			if (this.onlineUsers[recepientId] != null) {
+				console.log("User '"+data.user+"' send message '"+data.content+"' to user '"+recepientName+"'.");
+				this.sendToSingle(
+					'message', clientMsgData, 
+					this.onlineUsers[recepientId].sessionId
+				);
 			} else {
-				if (typeof(this.onlineUsers[recepient]) != 'undefined')
-					this.sendToSingle(
-						'typing', this.typingUsers, this.onlineUsers[recepient].sessionId
-					);
+				console.log("User '"+data.user+"' send message '"+data.content+"' to unknown user.");
 			}
-			console.log(data.user + ' is typing.');
+			this.sendToMyself('message', clientMsgData, socket);
 		}
 	},
-	webSocketOnClose: function (sessionId) {
-		// session id authorization boolean to false after user is disconnected
-		this.allowedSessionIds[sessionId] = false;
-		
-		var onlineUser = {}, 
-			userToDelete = {}, 
-			uidToDelete = '';
-		for (var uid in this.onlineUsers) {
-			onlineUser = this.onlineUsers[uid];
-			if (sessionId != onlineUser.sessionId) continue;
-			userToDelete = onlineUser;
-			uidToDelete = uid;
-			break;
+	handleWebSocketOnChatTyping: function (data) {
+		var typing = data.typing != null && data.typing;
+		this.typingUsers[data.user] = typing;
+		var recepientData = this.getWebSocketMessageRecepient(data),
+			recepientName = recepientData.name,
+			recepientId = recepientData.id;
+
+		if (recepientName == this.static.ALL_USERS_RECEPIENT_NAME) {
+			this.sendToAll('typing', this.typingUsers);
+			console.log("User '"+data.user+"' send notification about typing to all users.");
+		} else {
+			if (this.onlineUsers[recepientId] != null) {
+				console.log("User '"+data.user+"' send notification about typing to user '"+recepientName+"'.");
+				this.sendToSingle(
+					'typing', this.typingUsers, 
+					this.onlineUsers[recepientId].sessionId
+				);
+			} else {
+				console.log("User '"+data.user+"' send notification about typing to to unknown user.");
+			}
 		}
-		
-		this.onlineUsersCount--;
-		delete this.onlineUsers[uidToDelete];
-		
-		var onlineUsersToSendBack = {};
-		for (var uid in this.onlineUsers) 
-			onlineUsersToSendBack[uid] = this.onlineUsers[uid].user;
-		
-		this.sendToAll('logout', {
-			onlineUsers: onlineUsersToSendBack, 
-			onlineUsersCount: this.onlineUsersCount, 
-			id: userToDelete.id,
-			user: userToDelete.user
-		});
-		
-		console.log("User '" + onlineUser.user + "' exited the chat room.");
 	},
-	webSocketOnError: function (sessionId) {
-		// session id authorization boolean to false after user is disconnected
-		this.allowedSessionIds[sessionId] = false;
-		
-		var onlineUser = {}, 
-			userToDelete = {}, 
-			uidToDelete = '';
-		for (var uid in this.onlineUsers) {
-			onlineUser = this.onlineUsers[uid];
-			if (sessionId != onlineUser.sessionId) continue;
-			userToDelete = onlineUser;
-			uidToDelete = uid;
-			break;
-		}
-		
-		this.onlineUsersCount--;
-		delete this.onlineUsers[uidToDelete];
-		
-		var onlineUsersToSendBack = {};
-		for (var uid in this.onlineUsers) 
-			onlineUsersToSendBack[uid] = this.onlineUsers[uid].user;
-		
+
+	handleWebSocketOnClose: function (sessionId, code, reason) {
+		var userToDelete = this.deleteOnlineUserBySessionId(sessionId);
+		if (userToDelete == null) return;
 		this.sendToAllExceptMyself('logout', {
-			onlineUsers: onlineUsersToSendBack, 
-			onlineUsersCount: this.onlineUsersCount, 
+			onlineUsers: this.serializeOnlineUsers(), 
+			onlineUsersCount: this.onlineUsers.size, 
 			id: userToDelete.id,
 			user: userToDelete.user
-		});
-		
-		console.log("User '" + onlineUser.user + "' exited the chat room (connection error).");
+		}, sessionId);
+		console.log("User '"+userToDelete.user+"' exited the chat room (code: "+code+", reason: "+reason+").");
 	},
+	handleWebSocketOnError: function (sessionId) {
+		this.logger.Error(err);
+		var userToDelete = this.deleteOnlineUserBySessionId(sessionId);
+		if (userToDelete == null) return;
+		this.sendToAllExceptMyself('logout', {
+			onlineUsers: this.serializeOnlineUsers(), 
+			onlineUsersCount: this.onlineUsers.size, 
+			id: userToDelete.id,
+			user: userToDelete.user
+		}, sessionId);
+		console.log("User '"+userToDelete.user+"' exited the chat room because of an error.");
+	},
+
 	sendToAll: function (eventName, data) {
 		var response = {
 			eventName: eventName,
-			data: data
+			data: data,
+			live: true
 		};
 		var responseStr = JSON.stringify(response);
+		delete response.live;
 		this.data.push(response);
 		if (this.data.length > App.LAST_MESSAGES_TO_SEND)
 			this.data.shift();
@@ -220,9 +313,11 @@ App.prototype = {
 	sendToSingle: function (eventName, data, targetSessionId) {
 		var response = {
 			eventName: eventName,
-			data: data
+			data: data,
+			live: true
 		};
 		var responseStr = JSON.stringify(response);
+		delete response.live;
 		response.targetSessionId = targetSessionId;
 		this.data.push(response);
 		if (this.data.length > App.LAST_MESSAGES_TO_SEND)
@@ -243,7 +338,8 @@ App.prototype = {
 	sendToMyself: function (eventName, data, ws) {
 		var responseStr = JSON.stringify({
 			eventName: eventName,
-			data: data
+			data: data,
+			live: true
 		});
 		if (ws.readyState !== WebSocket.OPEN) return;
 		try {
@@ -255,16 +351,18 @@ App.prototype = {
 	sendToAllExceptMyself: function (eventName, data, myselfSessionId) {
 		var response = {
 			eventName: eventName,
-			data: data
+			data: data,
+			live: true
 		};
 		var responseStr = JSON.stringify(response);
+		delete response.live;
 		this.data.push(response);
 		if (this.data.length > App.LAST_MESSAGES_TO_SEND)
 			this.data.shift();
 		var onlineUser = {};
 		for (var userId in this.onlineUsers) {
 			onlineUser = this.onlineUsers[userId];
-			if (onlineUser.sessionId !== targetSessionId) {
+			if (onlineUser.sessionId !== myselfSessionId) {
 				if (onlineUser.ws && onlineUser.ws.readyState === WebSocket.OPEN) {
 					try {
 						onlineUser.ws.send(responseStr);
@@ -274,90 +372,78 @@ App.prototype = {
 			}
 		}
 	},
-	httpRequestComplete: function (request, response, resolve, reject) {
-		if (request.GetMethod() == 'POST' && request.HasParam('login-submit')) {
-			if (this.users.length) {
-				this.authenticateUser(request, response, resolve, reject);
-			} else {
-				this.loadCsvLoginData(function (users) {
-					this.users = users;
-					this.authenticateUser(request, response, resolve, reject);
-				}.bind(this));
-			}
-		} else {
-			response.SetBody('/* No autorization credentials sended. */').Send();
-			resolve();
-		}
-	},
-	authenticateUser: function (request, response, resolve, reject) {
-		var user = request.GetParam("user", "\-\._@a-zA-Z0-9", "");
-		var pass = request.GetParam("pass", "\-\._@a-zA-Z0-9", "");
-		
-		/***************************************************************************/
-		/**                          CSV users comparation                        **/
-		/***************************************************************************/
-		if (this.users[user] && this.users[user].pass == pass) {
-			// after session is authorized - set session id authorization boolean to true:
-			var id = this.users[user].id;
-			WebDevServer.Session.Start(request, response).then(function(session) {
-				var sessionNamespace = session.GetNamespace("chat");
 
-				sessionNamespace.id = id;
-				sessionNamespace.user = user;
-				sessionNamespace.authenticated = true;
-				
-				response.SetBody('{"success":true,"id":' + id + '}').Send();
-				resolve();
-			}.bind(this));
-			
-		} else {
-			response.SetBody('{"success":false').Send();
-			resolve();
-		}
-		/***************************************************************************/
-			
-	},
-	loadCsvLoginData: function (cb) {
-		fs.readFile (__dirname + '/login-data.csv', function (err, content) {
-			var rows = content.toString().replace(/\r/g, '').split('\n'),
-				result = {},
-				length = 0;
-			rows.shift();
-			rows.forEach(function (row, i) {
-				var data = row.split(';'),
-					username = data[2];
-				result[username] = {
-					id: parseInt(data[0], 10),
-					name: data[1],
-					user: username,
-					pass: data[3]
-				};
-				length += 1;
-			});
-			result.length = length;
-			cb(result);
-		});
-	},
-	sendLastComunication: function (ws, sessionId) {
+	sendLastComunication: function (ws, sessionId, currentUserId) {
 		// send last n messages:
 		if (this.data.length > 0) {
 			var lastMessagesCount = App.LAST_CHAT_MESSAGES_TO_SEND, 
 				response = {};
 			for (
-				var i = Math.max(this.data.length - 1 - lastMessagesCount, 0),
+				var i = Math.min(this.data.length - 1 - lastMessagesCount, 0),
 					l = Math.min(lastMessagesCount, this.data.length);
 				i < l; 
 				i += 1
 			) {
 				response = this.data[i];
-				if (response.eventName !== 'message') continue;
 				if (
-					response.data.recepient != 'all' && 
-					response.targetSessionId != sessionId
-				) continue;
-				ws.send(JSON.stringify(response));
+					response.eventName !== 'message' && 
+					response.eventName !== 'login' && 
+					response.eventName !== 'logout'
+				) 
+					continue;
+				if (
+					response.targetSessionId == null ||
+					response.targetSessionId === sessionId || 
+					response.data.id === currentUserId
+				) {
+					ws.send(JSON.stringify({
+						eventName: response.eventName,
+						data: response.data,
+						live: false
+					}));
+				}
 			}
 		}
+	},
+
+	serializeOnlineUsers: function () {
+		var onlineUsers = {};
+		for (var uid in this.onlineUsers) 
+			onlineUsers[uid] = this.onlineUsers[uid].user;
+		return onlineUsers;
+	},
+	getWebSocketMessageRecepient: function (data) {
+		var recepientName = this.static.ALL_USERS_RECEPIENT_NAME,
+			recepientId = null;
+		if (data.recepient != null && String(data.recepient) != '') {
+			recepientName =  data.recepient;
+			if (this.users[recepientName] != null) 
+				recepientId = this.users[recepientName].id;
+		}
+		return {name: recepientName, id: recepientId};
+	},
+	deleteOnlineUserBySessionId: function (sessionId) {
+		var userToDelete = null,
+			onlineUser = {};
+		for (var userId in this.onlineUsers) {
+			onlineUser = this.onlineUsers[userId];
+			if (sessionId === onlineUser.sessionId) {
+				userToDelete = onlineUser;
+				break;
+			}
+		}
+		if (userToDelete != null) {
+			this.onlineUsersCount--;
+			delete this.onlineUsers[userToDelete.id];
+		} else {
+			try {
+				throw new Error("No user for session id '"+sessionId+"' to close socket connection.");
+			} catch (e) {
+				this.logger.Error(e);
+			}
+			return null;
+		}
+		return userToDelete;
 	}
 };
 

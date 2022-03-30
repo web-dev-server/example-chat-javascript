@@ -65,7 +65,7 @@ Class.Define('Chat', {
 	_developmentAutoLogin: function () {
 		var chrome = navigator.userAgent.indexOf('Chrome') > -1,
 			firefox = navigator.userAgent.indexOf('Firefox') > -1;
-		this._loginForm.user.value = chrome ? 'james.bond' : firefox ? 'moneypenny' : 'mr.white' ;
+		this._loginForm.user.value = chrome ? 'james.bond' : firefox ? 'money.penny' : 'mr.smith' ;
 		this._loginForm.pass.value = '1234';
 		if (document.createEvent) {
 			var eventObject = document.createEvent('Event');
@@ -137,25 +137,23 @@ Class.Define('Chat', {
 			user: this._user
 		});
 		// init web socket server events:
-		this._socket.bind('login', function (data) {
-			scope._anyUserLogInHandler(data);
+		this._socket.bind('connection', function (data) {
+			console.log(data.message);
 		});
-		this._socket.bind('logout', function (data) {
-			scope._anyUserLogOutHandler(data);
-		});
-		this._socket.bind('message', function (data) {
+		this._socket.bind('login', this._anyUserLogInHandler.bind(this));
+		this._socket.bind('logout', this._anyUserLogOutHandler.bind(this));
+		this._socket.bind('message', function (data, live) {
 			scope._addMessage(
 				'content ' + (
 					data.id == scope._id ? 'current' : 'other'
 				),
 				data.content,
-				data.user
+				data.user,
+				data.recepient
 			);
-			scope._audioElm.play();
+			if (live) scope._audioElm.play();
 		});
-		this._socket.bind('typing', function (data) {
-			scope._typingUsersHandler(data);
-		});
+		this._socket.bind('typing', this._typingUsersHandler.bind(this));
 	},
 	_messageFormSubmitHandler: function (e) {
 		var messageText = this._messageForm.message.value;
@@ -190,25 +188,31 @@ Class.Define('Chat', {
 		}
 		return recepient;
 	},
-	_anyUserLogInHandler: function (data) {
-		this._updateOnlineUsersHandler(data);
+	_anyUserLogInHandler: function (data, live) {
+		if (live) this._updateOnlineUsersHandler(data);
 		this._addMessage(
 			'notify', data.user + ' has joined chat'
 		);
-		this._updateRecepients(data.onlineUsers);
+		if (live) this._updateRecepients(data.onlineUsers);
 	},
-	_anyUserLogOutHandler: function (data) {
-		this._updateOnlineUsersHandler(data);
+	_anyUserLogOutHandler: function (data, live) {
+		if (live) this._updateOnlineUsersHandler(data);
 		this._addMessage(
 			'notify', data.user + ' has leaved chat'
 		);
-		this._updateRecepients(data.onlineUsers);
+		if (live) this._updateRecepients(data.onlineUsers);
 	},
-	_addMessage: function (msgClass, msgContent, msgAutor) {
+	_addMessage: function (msgClass, msgContent, msgAutor, msgRecepient) {
 		var msg = document.createElement('div');
 		msg.className = 'message ' + msgClass;
 		msg.innerHTML = '<div>' + msgContent + '</div>';
-		if (msgAutor) msg.innerHTML += '<span>' + msgAutor + '</span>';
+		if (msgAutor) {
+			if (msgRecepient != null && msgRecepient != '') {
+				msg.innerHTML += '<span>' + msgAutor + ' to ' + msgRecepient + '</span>';
+			} else {
+				msg.innerHTML += '<span>' + msgAutor + ' to all</span>';
+			}
+		}
 		this._messages.appendChild(msg);
 		this._scrollToBottom();
 	},
@@ -237,13 +241,16 @@ Class.Define('Chat', {
 		}
 	},
 	_updateRecepients: function (onlineUsers) {
-		var html = '';
-		console.log(onlineUsers);
-		for (var id in onlineUsers) {
-			if (id == this._id) continue;
+		var html = '', 
+			idInt = 0, 
+			userName = '';
+		for (var idStr in onlineUsers) {
+			idInt = parseInt(idStr, 10);
+			if (idInt === this._id) continue;
+			userName = onlineUsers[idStr];
 			html += '<div>'
-				+'<input id="rcp-' + id + '" type="radio" name="rcp" value="' + id + '" />'
-				+'<label for="rcp-' + id + '">' + onlineUsers[id] + '</label>'
+				+'<input id="rcp-' + idStr + '" type="radio" name="rcp" value="' + userName + '" />'
+				+'<label for="rcp-' + idStr + '">' + userName + '</label>'
 			+'</div>';
 		}
 		this._recepients.innerHTML = html;
