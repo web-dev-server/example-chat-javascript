@@ -1,6 +1,6 @@
-# Example - Chat
+# Example - Chat - Javascript
 
-[![Latest Stable Version](https://img.shields.io/badge/Stable-v3.1.0-brightgreen.svg?style=plastic)](https://github.com/web-dev-server/example-chat-javascript/releases)
+[![Latest Stable Version](https://img.shields.io/badge/Stable-v3.0.26-brightgreen.svg?style=plastic)](https://github.com/web-dev-server/example-chat-javascript/releases)
 [![License](https://img.shields.io/badge/Licence-BSD-brightgreen.svg?style=plastic)](https://github.com/web-dev-server/chat-example-pure-js/blob/master/LICENCE.md)
 
 Chat example with session authentication. Client scripts written with pure Javascript, no framework needed.
