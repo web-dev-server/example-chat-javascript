@@ -224,7 +224,8 @@ Class.Define('Chat', {
 	},
 	_handleServerUserLogin: function (data, live) {
 		if (live) this._updateOnlineUsers(data);
-		if (!live) this._addMessage('notify', data.user + ' has joined chat');
+		if (!live || (live && data.id !== this._id)) 
+			this._addMessage('notify', data.user + ' has joined chat');
 		if (live) this._updateRecepients(data.onlineUsers);
 	},
 	_handleServerUserLogout: function (data, live) {
