@@ -6,7 +6,7 @@
     "javascript",
 	"node"
   ],
-  "description": "Chat example with session authentication in pure Javascript.",
+  "description": "Chat example with session authentication in Javascript.",
   "homepage": "https://github.com/web-dev-server/example-chat-javascript",
   "repository": {
     "type": "git",
@@ -18,10 +18,10 @@
     "email": "tomflidr@gmail.com",
     "url": "https://github.com/tomFlidr"
   },
-  "main": "server.js",
+  "main": "chat/js/server/run.js",
   "scripts": {
-    "start": "node server.js",
-    "postinstall": "copy-files-from-to"
+    "postinstall": "copy-files-from-to",
+    "start": "node chat/js/server/run.js"
   },
   "copyFiles": [
     {

@@ -85,13 +85,14 @@ form.login-form input[type=submit]{
 	margin:10px;
 }
 .messages{
-    overflow-y: auto;
-    position: absolute;
-    top: 0px;
-    bottom: 0px;
-    width: 100%;
-    height: 100%;
-    overflow-x: hidden;
+	overflow-y: auto;
+	position: absolute;
+	top: 0px;
+	bottom: 0px;
+	width: 100%;
+	height: calc(100% - 25px);
+	padding-top: 25px;
+	overflow-x: hidden;
 }
 
 .message.notify{
@@ -104,12 +105,12 @@ form.login-form input[type=submit]{
 }
 .message.content.current{
 	float: right;
-    text-align: right;
+	text-align: right;
 	margin: 5px 10px 5px 10px;
 }
 .message.content.other{
 	float: left;
-    text-align: left;
+	text-align: left;
 	margin: 5px 0 5px 10px;
 }
 .message.content{
@@ -117,45 +118,45 @@ form.login-form input[type=submit]{
 }
 .message.content div{
 	min-width: calc(100% - 43px);
-    position: relative;
-    display: inline-block;
-    padding: 8px 21px 8px 10px;
-    text-align: left;
-    border-radius: 10px;
-    color: #fff;
-    vertical-align: top;
+	position: relative;
+	display: inline-block;
+	padding: 8px 21px 8px 10px;
+	text-align: left;
+	border-radius: 10px;
+	color: #fff;
+	vertical-align: top;
 }
 .message.content.current div{
-    box-shadow: inset 0 0 1px #007aff;
-    background-color: #007aff;
+	box-shadow: inset 0 0 1px #007aff;
+	background-color: #007aff;
 }
 .message.content.other div{
-    box-shadow: inset 0 0 1px #00a617;
-    background-color: #00a617;
+	box-shadow: inset 0 0 1px #00a617;
+	background-color: #00a617;
 }
 .message.content div:before{
-    content: "";
-    position: absolute;
-    top: 4px;
-    width: 0;
-    height: 0;
-    border-top: solid transparent;
-    border-bottom: 4px solid transparent;
+	content: "";
+	position: absolute;
+	top: 4px;
+	width: 0;
+	height: 0;
+	border-top: solid transparent;
+	border-bottom: 4px solid transparent;
 }
 .message.content.current div:before{
-    right: -5px;
-    border-left: 7px solid #007aff;
+	right: -5px;
+	border-left: 7px solid #007aff;
 }
 .message.content.other div:before{
-    left: -5px;
-    border-right: 7px solid #00a617;
+	left: -5px;
+	border-right: 7px solid #00a617;
 }
 .message.content span{
 	font-weight: normal;
-    font-size: 10px;
-    color: #f60;
-    overflow: hidden;
-    display: block;
+	font-size: 10px;
+	color: #f60;
+	overflow: hidden;
+	display: block;
 }
 .message.notify span{
 	display: hidden;
@@ -170,10 +171,10 @@ form.message-form{
 }
 form.message-form .message-cont{
 	position:absolute;
-    left:10px;
-    top:10px;
-    bottom:50px;
-    right:calc(20% + 10px + 10px + 10px);
+	left:10px;
+	top:10px;
+	bottom:50px;
+	right:calc(20% + 10px + 10px + 10px);
 }
 form.message-form .message-cont textarea{
 	width:calc(100% - 10px);
@@ -183,14 +184,14 @@ form.message-form .message-cont textarea{
 }
 form.message-form .recepients{
 	position: absolute;
-    color: #fff;
-    bottom: 13px;
-    left: 10px;
+	color: #fff;
+	bottom: 13px;
+	left: 10px;
 	overflow:hidden;
 }
 form.message-form .recepients div{
 	float: left;
-    margin-right: 20px;
+	margin-right: 20px;
 }
 form.message-form button{
 	position:absolute;
@@ -200,18 +201,18 @@ form.message-form button{
 	width:20%;
 	border:1px solid #c5c5c9;
 	border-radius:4px;
-    font-size:130%;
+	font-size:130%;
 }
 
 audio#msg-sound {
 	display:none;
 }
 div.typing-users-cont{
-    position: absolute;
-    color: white;
-    bottom: 10px;
-    right: 10px;
-    white-space: nowrap;
-    font-size: 70%;
+	position: absolute;
+	color: white;
+	bottom: 10px;
+	right: 10px;
+	white-space: nowrap;
+	font-size: 70%;
 	display: none;
 }

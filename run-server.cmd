@@ -1,1 +1,1 @@
-node server.js
+node chat/js/server/run.js

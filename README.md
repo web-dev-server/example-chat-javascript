@@ -17,9 +17,9 @@ npm update
 node server.js
 ```
 - open your first web browser on:
-  - http://localhost:8000/chat/
+  - http://localhost:8000/
   - login with any user and password located in `./chat/data/login-data.csv`
 - open your second web browser on:
-  - http://localhost:8000/chat/
+  - http://localhost:8000/
   - login with any user and password located in `./chat/data/login-data.csv`
 - chat between browsers
